@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 專案戰情室 v27.0 (拖曳+視覺優化)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        :root {
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        /* 區塊色系 */
+        :root {
+            --za-bg: #e7f1ff;
+            --za-color: #0d6efd;
+            --zb-bg: #fff3cd;
+            --zb-color: #ffc107;
+            --zc-bg: #d1e7dd;
+            --zc-color: #198754;
+        }
+
+        body {
+            background-color: var(--bg);
+            font-family: "Microsoft JhengHei", sans-serif;
+            padding: 20px;
+            color: var(--text);
+            padding-bottom: 80px;
+        }
+
+        /* 導覽列 */
+        .navbar {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-title-input {
+            border: none;
+            background: transparent;
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: #2c3e50;
+            width: 400px;
+            outline: none;
+            border-bottom: 2px solid transparent;
+            transition: 0.2s;
+        }
+
+        .nav-title-input:focus {
+            border-bottom-color: #0d6efd;
+        }
+
+        /* 甘特圖容器 */
+        .gantt-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            overflow-x: auto;
+        }
+
+        /* 區塊標題 */
+        .zone-header {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            margin-top: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 6px solid #ccc;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .theme-A {
+            background: var(--za-bg);
+            border-color: var(--za-color);
+            color: #004085;
+        }
+
+        .theme-B {
+            background: var(--zb-bg);
+            border-color: var(--zb-color);
+            color: #856404;
+        }
+
+        .theme-C {
+            background: var(--zc-bg);
+            border-color: var(--zc-color);
+            color: #0f5132;
+        }
+
+        .zone-title-input {
+            border: none;
+            background: transparent;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: inherit;
+            width: 250px;
+            outline: none;
+            border-bottom: 1px dashed transparent;
+        }
+
+        .zone-title-input:focus {
+            border-bottom-color: currentColor;
+        }
+
+        .zone-goal-input {
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.9rem;
+            color: #555;
+            font-weight: bold;
+            cursor: pointer;
+            width: 140px;
+        }
+
+        .zone-countdown {
+            font-weight: bold;
+            font-size: 0.95rem;
+            margin-left: 10px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-zone-action {
+            background: white;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #555;
+        }
+
+        .btn-del-zone {
+            color: #dc3545;
+            border-color: #dc3545;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-add-new-zone {
+            width: 100%;
+            border: 2px dashed #ccc;
+            background: #f8f9fa;
+            color: #666;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            transition: 0.2s;
+        }
+
+        .btn-add-new-zone:hover {
+            border-color: #0d6efd;
+            color: #0d6efd;
+            background: #e7f1ff;
+        }
+
+        /* 任務列表容器 (用於 Sortable) */
+        .zone-task-list {
+            min-height: 10px;
+            padding-bottom: 10px;
+        }
+
+        /* 甘特圖行 */
+        .gantt-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 6px 0;
+            border-bottom: 1px dashed #eee;
+            background: white;
+            transition: background 0.2s;
+        }
+
+        .gantt-row:hover {
+            background: #fcfcfc;
+        }
+
+        /* 拖曳中的樣式 */
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #eee;
+        }
+
+        /* 拖曳把手 */
+        .drag-handle {
+            width: 30px;
+            text-align: center;
+            cursor: grab;
+            color: #adb5bd;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .drag-handle:hover {
+            color: #666;
+        }
+
+        .row-action {
+            width: 30px;
+            text-align: center;
+            cursor: pointer;
+            color: #dc3545;
+            font-size: 1.1rem;
+            opacity: 0.3;
+            transition: 0.2s;
+        }
+
+        .row-action:hover {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .gantt-label {
+            width: 200px;
+            padding-left: 10px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #444;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+
+        .gantt-label:hover {
+            text-decoration: underline;
+        }
+
+        .gantt-track {
+            flex-grow: 1;
+            position: relative;
+            height: 26px;
+            background: #f8f9fa;
+            border-radius: 13px;
+            margin: 0 15px;
+        }
+
+        .gantt-bar {
+            position: absolute;
+            height: 100%;
+            border-radius: 13px;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            padding-left: 12px;
+            cursor: help;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .bar-theme-A {
+            background: var(--za-color);
+        }
+
+        .bar-theme-B {
+            background: var(--zb-color);
+        }
+
+        .bar-theme-C {
+            background: var(--zc-color);
+        }
+
+        /* 視覺優化：圓點點 */
+        .dot-indicator {
+            display: inline-flex;
+            gap: 3px;
+            align-items: center;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .dot.filled {
+            background: white;
+            box-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+        }
+
+        .gantt-countdown {
+            width: 120px;
+            text-align: right;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #666;
+            padding-right: 5px;
+        }
+
+        .cd-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .cd-normal {
+            background: #e9ecef;
+            color: #555;
+        }
+
+        .cd-urgent {
+            background: #ffe6e6;
+            color: #dc3545;
+        }
+
+        .cd-done {
+            background: #d1e7dd;
+            color: #198754;
+        }
+
+        /* 浮動大按鈕 */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: #333;
+            color: white;
+            border-radius: 50%;
+            border: none;
+            font-size: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="navbar">
+        <input type="text" id="nav-title" class="nav-title-input" value="專案分區管理 v27.0"
+            onchange="saveMainTitle(this.value)">
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="resetData()">↻ 重置</button>
+            <button class="btn btn-sm btn-outline-success" onclick="exportJSON()">📥 備份</button>
+            <input type="file" id="importFile" hidden onchange="importJSON(this)">
+            <button class="btn btn-sm btn-outline-warning" onclick="document.getElementById('importFile').click()">📤
+                還原</button>
+        </div>
+    </div>
+
+    <div class="gantt-container">
+        <div class="d-flex justify-content-between mb-2">
+            <h5 class="fw-bold m-0 text-muted">🗺️ 專案路線圖 (Roadmap)</h5>
+            <small class="text-muted">💡 拖曳左側 ≡ 可排序任務 | 圓點代表子任務完成數</small>
+        </div>
+
+        <div id="gantt-chart-area">
+        </div>
+
+        <button class="btn-add-new-zone" onclick="addNewZone()">＋ 新增專案區塊 (Add New Zone)</button>
+    </div>
+
+    <button class="fab" onclick="createTask()">＋</button>
+
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold">✏️ 編輯任務</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="small text-muted fw-bold">所屬專案區塊</label>
+                        <select id="m-zone" class="form-select border-primary fw-bold bg-light"></select>
+                    </div>
+                    <label class="small text-muted">任務名稱</label>
+                    <input type="text" id="m-title" class="form-control mb-3 fw-bold">
+                    <div class="row g-2 mb-3">
+                        <div class="col-6"><label class="small text-muted">開始日</label><input type="date" id="m-start"
+                                class="form-control"></div>
+                        <div class="col-6"><label class="small text-muted">結束日</label><input type="date" id="m-end"
+                                class="form-control"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">進度狀態</label>
+                        <select id="m-status" class="form-select">
+                            <option value="future">⚪ 未開始</option>
+                            <option value="active">🔵 進行中</option>
+                            <option value="done">🟢 已完成</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <label class="small text-muted fw-bold">子任務清單</label>
+                    <div class="input-group mb-2">
+                        <input type="text" id="new-sub" class="form-control" placeholder="輸入細項..."
+                            onkeypress="if(event.key==='Enter') addSub()">
+                        <button class="btn btn-outline-secondary" onclick="addSub()">＋</button>
+                    </div>
+                    <div id="sub-list" class="border rounded p-2 bg-light" style="max-height: 150px; overflow-y: auto;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary w-100" onclick="saveTask()">💾 儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 預設資料
+        const defaultData = {
+            projectTitle: "專案分區管理 v27.0 (拖曳版)",
+            zones: [
+                { id: "A", title: "A區塊 - 中冠 AI 會議廳", theme: "A", goal: "2025-12-31" },
+                { id: "B", title: "B區塊 - AI 考照機器人", theme: "B", goal: "2025-12-20" },
+                { id: "C", title: "C區塊 - 東吳標籤模型", theme: "C", goal: "2026-01-15" }
+            ],
+            tasks: [
+                { id: "t1", zone: "A", title: "M1 基礎架構 (Infra)", start: "2025-11-20", end: "2025-11-30", status: "done", subtasks: [{ txt: "VM申請", done: true }, { txt: "防火牆", done: true }] },
+                { id: "t2", zone: "A", title: "SSO 驗證開發", start: "2025-12-01", end: "2025-12-15", status: "active", subtasks: [{ txt: "API文件", done: true }, { txt: "Token測試", done: false }, { txt: "壓力測試", done: false }] },
+                { id: "t3", zone: "B", title: "考照題庫 PDF 清洗", start: "2025-11-25", end: "2025-12-05", status: "active", subtasks: [{ txt: "OCR識別", done: true }] }
+            ]
+        };
+
+        let state = JSON.parse(localStorage.getItem('ai_zone_v27')) || defaultData;
+        // 確保每個任務都有唯一 ID (舊資料升級用)
+        state.tasks.forEach(t => { if (!t.id) t.id = 'task_' + Math.random().toString(36).substr(2, 9); });
+
+        let curTaskId = null;
+        const modal = new bootstrap.Modal(document.getElementById('editModal'));
+
+        // --- 工具: 工作天 ---
+        function getBusinessDaysLeft(endDateStr) {
+            if (!endDateStr) return null;
+            let today = new Date(); today.setHours(0, 0, 0, 0);
+            let end = new Date(endDateStr); end.setHours(23, 59, 59, 999);
+            if (today > end) return -1;
+            let count = 0; let curr = new Date(today);
+            while (curr <= end) {
+                let d = curr.getDay(); if (d !== 0 && d !== 6) count++; curr.setDate(curr.getDate() + 1);
+            }
+            return count;
+        }
+
+        // --- 渲染 ---
+        function render() {
+            document.getElementById('nav-title').value = state.projectTitle;
+            const container = document.getElementById('gantt-chart-area');
+            container.innerHTML = '';
+
+            const minDate = new Date("2025-11-15").getTime();
+            const maxDate = new Date("2026-02-28").getTime();
+            const totalDur = maxDate - minDate;
+
+            state.zones.forEach(zone => {
+                const zTheme = zone.theme || "A";
+                // 這裡不使用 sort，因為我們希望按照 state.tasks 裡的自然順序 (即使用者拖曳後的順序)
+                // 但我們需要過濾出屬於此 zone 的 tasks
+                const zTasks = state.tasks.filter(t => t.zone === zone.id);
+                const zGoal = zone.goal || "";
+
+                let goalHtml = "";
+                if (zGoal) {
+                    const days = getBusinessDaysLeft(zGoal);
+                    if (days < 0) goalHtml = `<span class="zone-countdown text-danger">⚠️ 已截止</span>`;
+                    else goalHtml = `<span class="zone-countdown text-success">⏳ 剩 ${days} 工作天</span>`;
+                } else {
+                    goalHtml = `<span class="zone-countdown text-muted">未設日期</span>`;
+                }
+
+                // 1. 區塊標題
+                container.innerHTML += `
+                <div class="zone-header theme-${zTheme}">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <input type="text" class="zone-title-input" value="${zone.title}" onchange="updateZoneTitle('${zone.id}', this.value)">
+                        <input type="date" class="zone-goal-input" value="${zGoal}" onchange="updateZoneGoal('${zone.id}', this.value)">
+                        ${goalHtml}
+                    </div>
+                    <div>
+                        <button class="btn-zone-action" onclick="createTask('${zone.id}')">＋ 任務</button>
+                        <button class="btn-zone-action btn-del-zone ms-1" onclick="deleteZone('${zone.id}')">×</button>
+                    </div>
+                </div>
+            `;
+
+                // 2. 任務列表容器 (加上 ID 方便 Sortable)
+                const listId = `zone-list-${zone.id}`;
+                let listHtml = `<div id="${listId}" class="zone-task-list" data-zone="${zone.id}">`;
+
+                if (zTasks.length === 0) {
+                    listHtml += `<div class="text-center text-muted small py-3 dashed">尚無任務</div>`;
+                } else {
+                    zTasks.forEach(t => {
+                        const s = new Date(t.start).getTime();
+                        const e = new Date(t.end).getTime();
+                        let left = ((s - minDate) / totalDur) * 100;
+                        let width = ((e - s) / totalDur) * 100;
+                        if (left < 0) { width += left; left = 0; }
+                        if (width < 2) width = 2;
+
+                        // 視覺優化：圓點 (Dots)
+                        let dotsHtml = '<div class="dot-indicator">';
+                        t.subtasks.forEach(sub => {
+                            dotsHtml += `<div class="dot ${sub.done ? 'filled' : ''}"></div>`;
+                        });
+                        if (t.subtasks.length === 0) dotsHtml += '<span style="font-size:0.7rem; opacity:0.7">無細項</span>';
+                        dotsHtml += '</div>';
+
+                        // Tooltip
+                        const pendingItems = t.subtasks.filter(sb => !sb.done).map(sb => "• " + sb.txt).join("\n");
+                        const tooltipTxt = pendingItems ? `待辦：\n${pendingItems}` : "✅ 全數完成";
+
+                        // 倒數
+                        let daysLeftHtml = '';
+                        if (t.status === 'done') daysLeftHtml = `<span class="cd-tag cd-done">完成</span>`;
+                        else {
+                            const days = getBusinessDaysLeft(t.end);
+                            if (days < 0) daysLeftHtml = `<span class="cd-tag bg-secondary text-white">截止</span>`;
+                            else if (days <= 3) daysLeftHtml = `<span class="cd-tag cd-urgent">剩 ${days} 天</span>`;
+                            else daysLeftHtml = `<span class="cd-tag cd-normal">剩 ${days} 天</span>`;
+                        }
+
+                        // 注意： data-id 存任務 ID，方便排序更新
+                        listHtml += `
+                        <div class="gantt-row" data-id="${t.id}">
+                            <div class="drag-handle">≡</div>
+                            <div class="row-action" onclick="quickDelete('${t.id}')">🗑️</div>
+                            <div class="gantt-label" onclick="openEdit('${t.id}')" title="${t.title}">${t.title}</div>
+                            <div class="gantt-track">
+                                <div class="gantt-bar bar-theme-${zTheme}" 
+                                     style="left:${left}%; width:${width}%;"
+                                     onclick="openEdit('${t.id}')"
+                                     title="${tooltipTxt}">
+                                     ${dotsHtml}
+                                </div>
+                            </div>
+                            <div class="gantt-countdown">${daysLeftHtml}</div>
+                        </div>
+                    `;
+                    });
+                }
+                listHtml += `</div>`;
+                container.innerHTML += listHtml;
+            });
+
+            // 渲染後，重新綁定 Sortable
+            initSortable();
+            localStorage.setItem('ai_zone_v27', JSON.stringify(state));
+        }
+
+        // --- 拖曳排序邏輯 ---
+        function initSortable() {
+            state.zones.forEach(zone => {
+                const el = document.getElementById(`zone-list-${zone.id}`);
+                if (el) {
+                    new Sortable(el, {
+                        handle: '.drag-handle', // 只能拉把手
+                        animation: 150,
+                        ghostClass: 'sortable-ghost',
+                        onEnd: function (evt) {
+                            // 拖曳結束，更新 state.tasks 的順序
+                            const zoneId = evt.item.parentElement.getAttribute('data-zone');
+                            updateOrder(zoneId, evt.from);
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateOrder(zoneId, containerEl) {
+            // 1. 取得該區塊目前 DOM 裡的 ID 順序
+            const newIds = Array.from(containerEl.querySelectorAll('.gantt-row')).map(el => el.getAttribute('data-id'));
+
+            // 2. 把原本 tasks 拆成「此區塊」與「非此區塊」
+            const otherTasks = state.tasks.filter(t => t.zone !== zoneId);
+            const zoneTasksMap = new Map(state.tasks.filter(t => t.zone === zoneId).map(t => [t.id, t]));
+
+            // 3. 依照新 ID 順序重組此區塊的 tasks
+            const reorderedZoneTasks = newIds.map(id => zoneTasksMap.get(id)).filter(t => t); // filter undefined just in case
+
+            // 4. 合併 (為了保持其他區塊不受影響，我們先放 reordered，再放 others，或者反之皆可，這裡採取簡單合併)
+            // 更嚴謹的做法：應該保持 zones 的相對順序。但因為我們渲染是依賴 zones 陣列，tasks 陣列的絕對順序只影響同 zone 內的排序。
+            // 所以，我們只要把此 zone 的 tasks 抽掉，換成新的順序插回去即可。
+
+            // 為了簡單，我們直接：非此區塊 + 此區塊(新順序)
+            // 但這樣會導致此區塊跑到最後面嗎？不，因為 render 是跑 zones 迴圈。tasks 陣列順序只影響 filter 後的結果。
+            // 所以只要 filter 出來的順序是對的就好。
+
+            // 更新 state
+            state.tasks = [...otherTasks, ...reorderedZoneTasks];
+
+            // 存檔 (不用 re-render，因為 DOM 已經動了)
+            localStorage.setItem('ai_zone_v27', JSON.stringify(state));
+        }
+
+
+        // --- 區塊與任務基本操作 ---
+        function saveMainTitle(val) { state.projectTitle = val; localStorage.setItem('ai_zone_v27', JSON.stringify(state)); }
+        function updateZoneTitle(id, val) { const z = state.zones.find(z => z.id === id); if (z) { z.title = val; render(); } }
+        function updateZoneGoal(id, val) { const z = state.zones.find(z => z.id === id); if (z) { z.goal = val; render(); } }
+
+        function addNewZone() {
+            const lastTheme = state.zones.length > 0 ? state.zones[state.zones.length - 1].theme : "C";
+            let newTheme = lastTheme === "A" ? "B" : (lastTheme === "B" ? "C" : "A");
+            state.zones.push({ id: "Z" + Date.now(), title: "新專案區塊", theme: newTheme, goal: "" });
+            render();
+        }
+        function deleteZone(id) {
+            if (confirm("確定刪除此區塊與其下任務？")) {
+                state.zones = state.zones.filter(z => z.id !== id);
+                state.tasks = state.tasks.filter(t => t.zone !== id);
+                render();
+            }
+        }
+
+        function createTask(zoneKey) {
+            const defaultZone = zoneKey || (state.zones.length > 0 ? state.zones[0].id : "");
+            if (!defaultZone) { alert("請先新增區塊"); return; }
+            const newId = 'task_' + Date.now();
+            state.tasks.push({ id: newId, zone: defaultZone, title: "新任務...", start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0], status: "future", subtasks: [] });
+            openEdit(newId);
+        }
+
+        function quickDelete(id) { if (confirm("刪除任務？")) { state.tasks = state.tasks.filter(t => t.id !== id); render(); } }
+
+        function openEdit(id) {
+            curTaskId = id;
+            const t = state.tasks.find(t => t.id === id);
+            if (!t) return;
+
+            const zoneSelect = document.getElementById('m-zone');
+            zoneSelect.innerHTML = state.zones.map(z => `<option value="${z.id}">${z.title}</option>`).join('');
+            zoneSelect.value = t.zone;
+
+            document.getElementById('m-title').value = t.title;
+            document.getElementById('m-start').value = t.start;
+            document.getElementById('m-end').value = t.end;
+            document.getElementById('m-status').value = t.status;
+            renderSubs();
+            modal.show();
+        }
+
+        function saveTask() {
+            const t = state.tasks.find(t => t.id === curTaskId);
+            if (t) {
+                t.zone = document.getElementById('m-zone').value;
+                t.title = document.getElementById('m-title').value;
+                t.start = document.getElementById('m-start').value;
+                t.end = document.getElementById('m-end').value;
+                t.status = document.getElementById('m-status').value;
+            }
+            modal.hide();
+            render();
+        }
+
+        function renderSubs() {
+            const t = state.tasks.find(t => t.id === curTaskId);
+            const list = document.getElementById('sub-list');
+            list.innerHTML = t.subtasks.map((s, i) => `
+            <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                <div class="d-flex align-items-center">
+                    <input type="checkbox" class="form-check-input me-2" ${s.done ? 'checked' : ''} onchange="toggleSub(${i})">
+                    <span class="${s.done ? 'text-decoration-line-through text-muted' : ''}">${s.txt}</span>
+                </div>
+                <button class="btn btn-sm text-danger p-0" onclick="delSub(${i})">×</button>
+            </div>
+        `).join('');
+        }
+        function addSub() {
+            const val = document.getElementById('new-sub').value;
+            if (val) {
+                const t = state.tasks.find(t => t.id === curTaskId);
+                t.subtasks.push({ txt: val, done: false });
+                document.getElementById('new-sub').value = '';
+                renderSubs();
+            }
+        }
+        function delSub(i) {
+            const t = state.tasks.find(t => t.id === curTaskId);
+            t.subtasks.splice(i, 1);
+            renderSubs();
+        }
+        function toggleSub(i) {
+            const t = state.tasks.find(t => t.id === curTaskId);
+            t.subtasks[i].done = !t.subtasks[i].done;
+            renderSubs();
+        }
+
+        function resetData() { if (confirm("重置所有資料？")) { localStorage.removeItem('ai_zone_v27'); location.reload(); } }
+        function exportJSON() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state)], { type: "application/json" })); a.download = "AI_Zone_v27.json"; a.click(); }
+        function importJSON(el) { const r = new FileReader(); r.onload = e => { try { state = JSON.parse(e.target.result); render(); alert("ok"); } catch { alert("error"); } }; if (el.files[0]) r.readAsText(el.files[0]); }
+
+        render();
+    </script>
+
+</body>
+
+</html>
